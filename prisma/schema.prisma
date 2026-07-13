@@ -1,0 +1,370 @@
+// Prisma schema for the Intern Dashboard.
+// DB: Neon Postgres (pooled URL at runtime, direct URL for migrations).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (PgBouncer) — app runtime
+  directUrl = env("DIRECT_URL")   // direct — migrations only
+}
+
+// ── Enums ────────────────────────────────────────────────────
+enum Role {
+  INTERN
+  SUPERVISOR
+  ADMIN
+}
+
+// Health of an intern, set by a supervisor/admin.
+// Maps to UI colors: ON_TRACK=green, UNSATISFACTORY=amber, BEHIND=red.
+enum StatusValue {
+  ON_TRACK
+  UNSATISFACTORY
+  BEHIND
+}
+
+// Where a software project currently sits in the SDLC. Only asked on the
+// daily form when the intern's department is flagged isSoftware.
+enum SdlcStage {
+  PLANNING
+  REQUIREMENTS
+  DESIGN
+  IMPLEMENTATION
+  TESTING
+  DEPLOYMENT
+  MAINTENANCE
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+// ── Core domain ──────────────────────────────────────────────
+model Department {
+  id         String @id @default(cuid())
+  name       String @unique
+  // Whether interns here build software — gates the SDLC-stage question on the daily form.
+  isSoftware Boolean @default(false)
+  users      User[]
+  channels   Channel[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String?
+  email        String    @unique
+  emailVerified DateTime?
+  image        String?
+  role         Role      @default(INTERN)
+  // Lets a non-INTERN (e.g. an admin who's also carrying an intern-style
+  // project) submit the daily form and show up in intern dashboard rows.
+  isAlsoIntern Boolean   @default(false)
+  // Deactivated users are blocked from signing in and hidden from pickers,
+  // but their historical data (submissions, messages) is preserved.
+  active       Boolean   @default(true)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime  @default(now())
+
+  // Auth.js
+  accounts Account[]
+  sessions Session[]
+
+  // App relations
+  memberships     ChannelMembership[]
+  messages        Message[]           @relation("SentMessages")
+  dmParticipants  DMParticipant[]
+  submissions     FormSubmission[]    @relation("InternSubmissions")
+  status          InternStatus?       @relation("InternStatusOwner")
+  statusUpdates   InternStatus[]      @relation("StatusUpdatedBy")
+  notifications   Notification[]
+
+  // Supervisor <-> intern explicit mapping (independent of department).
+  supervisorOf        SupervisorAssignment[] @relation("SupervisorOf")
+  assignedSupervisors SupervisorAssignment[] @relation("AssignedSupervisor")
+
+  // Projects
+  projectsCreated   Project[]           @relation("ProjectsCreated")
+  projectAssignments ProjectAssignment[] @relation("ProjectAssignments")
+
+  // Custom daily-form questions
+  formQuestionsAuthored FormQuestion[]
+
+  // Meetings
+  organizedMeetings Meeting[]         @relation("OrganizedMeetings")
+  meetingInvites    MeetingAttendee[] @relation("MeetingInvitee")
+
+  @@index([departmentId])
+  @@index([role])
+}
+
+model Channel {
+  id           String   @id @default(cuid())
+  name         String
+  // null departmentId = global channel (e.g. #general) visible to everyone.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  isGeneral    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  memberships ChannelMembership[]
+  messages    Message[]
+
+  @@index([departmentId])
+}
+
+model ChannelMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  channelId String
+  joinedAt  DateTime @default(now())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@index([channelId])
+}
+
+// A message belongs to EITHER a channel OR a DM thread (exactly one is set).
+model Message {
+  id         String   @id @default(cuid())
+  body       String
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  channelId  String?
+  channel    Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  dmThreadId String?
+  dmThread   DMThread? @relation(fields: [dmThreadId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([dmThreadId, createdAt])
+}
+
+// 1:1 direct-message thread between exactly two users.
+model DMThread {
+  id        String   @id @default(cuid())
+  // Deterministic "sortedUserIdA:sortedUserIdB" — unique so a pair has one thread.
+  key       String   @unique
+  createdAt DateTime @default(now())
+
+  participants DMParticipant[]
+  messages     Message[]
+}
+
+model DMParticipant {
+  id       String @id @default(cuid())
+  threadId String
+  userId   String
+  thread   DMThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId])
+}
+
+// A timestamped weekly check-in filled by an intern.
+model FormSubmission {
+  id            String   @id @default(cuid())
+  internId      String
+  intern        User     @relation("InternSubmissions", fields: [internId], references: [id], onDelete: Cascade)
+  departmentId  String?
+  // Free-text name snapshot at submit time — always populated, whether typed
+  // freehand or copied from the selected `projectId` — so every existing
+  // display site keeps working unchanged.
+  project       String
+  projectId     String?
+  projectRef    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  answers       FormAnswer[]
+  didThisWeek   String
+  planNextWeek  String
+  blocked       Boolean  @default(false)
+  blockerDetail String?
+  // SDLC stage of the project, only set when the intern's department isSoftware.
+  sdlcStage     SdlcStage?
+  // Midnight (UTC) of the day this submission covers — one submission per intern per day.
+  periodStart   DateTime
+  createdAt     DateTime @default(now())
+
+  @@unique([internId, periodStart])
+  @@index([internId, createdAt])
+}
+
+// Current supervisor-set status for an intern (one row per intern).
+model InternStatus {
+  id          String      @id @default(cuid())
+  internId    String      @unique
+  intern      User        @relation("InternStatusOwner", fields: [internId], references: [id], onDelete: Cascade)
+  status      StatusValue @default(ON_TRACK)
+  notes       String?
+  updatedById String?
+  updatedBy   User?       @relation("StatusUpdatedBy", fields: [updatedById], references: [id])
+  updatedAt   DateTime    @updatedAt
+}
+
+// Explicit supervisor <-> intern ownership, independent of department. Drives
+// who a supervisor can assign projects to, add form questions for, and invite
+// to meetings.
+model SupervisorAssignment {
+  id           String   @id @default(cuid())
+  supervisorId String
+  internId     String
+  supervisor   User     @relation("SupervisorOf", fields: [supervisorId], references: [id], onDelete: Cascade)
+  intern       User     @relation("AssignedSupervisor", fields: [internId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([supervisorId, internId])
+  @@index([internId])
+}
+
+// A project a supervisor (or admin) creates and assigns to one or more
+// interns. Powers the daily form's Project dropdown.
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdById String
+  createdBy   User     @relation("ProjectsCreated", fields: [createdById], references: [id])
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  assignments ProjectAssignment[]
+  submissions FormSubmission[]
+}
+
+model ProjectAssignment {
+  id           String   @id @default(cuid())
+  projectId    String
+  internId     String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  intern       User     @relation("ProjectAssignments", fields: [internId], references: [id], onDelete: Cascade)
+  assignedById String
+  assignedAt   DateTime @default(now())
+
+  @@unique([projectId, internId])
+  @@index([internId])
+}
+
+// A supervisor-authored short-text question shown on their interns' daily
+// form, in addition to the fixed fields.
+model FormQuestion {
+  id           String   @id @default(cuid())
+  supervisorId String
+  supervisor   User     @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  prompt       String
+  // Soft-delete: hides the question from future forms and the management
+  // list, without destroying FormAnswer rows tied to past submissions.
+  active       Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  answers FormAnswer[]
+}
+
+model FormAnswer {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     FormQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer       String
+
+  @@unique([submissionId, questionId])
+  @@index([questionId])
+}
+
+// A scheduled meeting, optionally recurring. One row per series — recurring
+// occurrences are expanded on the fly (see src/lib/meetings.ts), not
+// materialized, so edit/cancel always applies to the whole series.
+model Meeting {
+  id                String   @id @default(cuid())
+  title             String
+  description       String?
+  organizerId       String
+  organizer         User     @relation("OrganizedMeetings", fields: [organizerId], references: [id], onDelete: Cascade)
+  startAt           DateTime
+  durationMins      Int      @default(30)
+  location          String?
+  recurrence        RecurrenceFrequency @default(NONE)
+  recurrenceEndDate DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime @default(now())
+
+  attendees MeetingAttendee[]
+
+  @@index([organizerId])
+  @@index([startAt])
+}
+
+model MeetingAttendee {
+  id        String  @id @default(cuid())
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation("MeetingInvitee", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+}
+
+// In-app notification (e.g. weekly-form reminder).
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // e.g. "FORM_REMINDER"
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+// Simple key/value config store (e.g. reminderIntervalDays).
+model AppSetting {
+  key   String @id
+  value String
+}
+
+// ── Auth.js (NextAuth) adapter tables ────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

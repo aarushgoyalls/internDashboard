@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/*
+ * Light design system, inspired by Discord's marketing-site language
+ * (DESIGN.md) but adapted to a light, data-dense dashboard: one owned accent
+ * hue used sparingly, a tight card/button radius scale, and bold tight-tracked
+ * headings instead of Discord's dark cosmic-blue environment.
+ */
+:root {
+  --background: #f5f6fb; /* cool off-white page canvas */
+  --surface: #ffffff; /* card / panel surface */
+  --surface-muted: #f0f1f8; /* subtle fills: hover, inputs-on-panel */
+  --foreground: #16172e; /* near-black ink, warmed slightly (Discord "Graphite" adapted for light) */
+  --muted: #6a6d8a; /* secondary text */
+  --subtle: #9799b3; /* placeholders, metadata, disabled */
+  --border: #e6e7f2; /* hairline borders */
+  --border-strong: #d3d5e8;
+
+  --accent: #5865f2; /* Discord "Blurple" — the single owned hue */
+  --accent-hover: #4752c4;
+  --accent-tint: #eef0fd; /* active nav, selected state, subtle accent fills */
+
+  --success: #16a34a;
+  --success-tint: #ecfdf3;
+  --warning: #d97706;
+  --warning-tint: #fffbeb;
+  --danger: #dc2626;
+  --danger-tint: #fef2f2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-tint: var(--accent-tint);
+
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+
+  /* Discord-inspired radius scale: 12px buttons, 16px cards, 24px panels */
+  --radius-btn: 12px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Thin, unobtrusive scrollbars for the chat/message panes. */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+@layer components {
+  /* Buttons — 12px radius per the Discord token scale, one filled accent
+     primary and a bordered white secondary; never both filled in one pair. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-none transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn border border-border-strong bg-surface px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-btn px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Cards / panels — flat, bordered surfaces; elevation comes from the
+     border + surface contrast, not box-shadow (matches the "no shadow on
+     content cards" rule from DESIGN.md, kept even though the theme is light). */
+  .card {
+    @apply rounded-card border border-border bg-surface;
+  }
+  .panel {
+    @apply rounded-panel border border-border bg-surface;
+  }
+
+  .field {
+    @apply w-full rounded-btn border border-border-strong bg-surface px-3 py-2 text-sm text-foreground placeholder:text-subtle transition focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-wider text-subtle;
+  }
+
+  .page-title {
+    @apply font-display text-2xl font-extrabold tracking-tight text-foreground;
+  }
+
+  .section-title {
+    @apply font-display text-sm font-extrabold uppercase tracking-wider text-muted;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+}

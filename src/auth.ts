@@ -57,7 +57,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const domainOk = domains.some((d) => email.endsWith(`@${d}`));
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing && !existing.active) return false; // deactivated: block sign-in
-        return domainOk || !!existing;
+        if (!(domainOk || !!existing)) return false;
+
+        // The adapter's linkAccount only runs the FIRST time an Account row
+        // is created for this provider+providerAccountId — a repeat sign-in
+        // never refreshes the stored tokens. Since auth.config.ts forces
+        // prompt=consent on every request (for Calendar sync), Google
+        // re-sends a refresh_token on every sign-in; without this manual
+        // upsert that fresh token is silently discarded, leaving anyone who
+        // already had an Account row before Calendar sync was added stuck
+        // without a refresh_token forever, even after re-consenting.
+        await prisma.account.updateMany({
+          where: { provider: "google", providerAccountId: account.providerAccountId },
+          data: {
+            access_token: account.access_token ?? undefined,
+            refresh_token: account.refresh_token ?? undefined,
+            expires_at: account.expires_at ?? undefined,
+            token_type: account.token_type ?? undefined,
+            scope: account.scope ?? undefined,
+            id_token: account.id_token ?? undefined,
+          },
+        });
+        return true;
       }
       return true;
     },

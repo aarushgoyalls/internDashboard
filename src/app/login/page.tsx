@@ -41,9 +41,9 @@ export default async function LoginPage({
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-lg font-extrabold text-white">
-            ID
+            LA
           </span>
-          <h1 className="page-title">Intern Dashboard</h1>
+          <h1 className="page-title">LeptonArgo</h1>
           <p className="mt-1 text-sm text-muted">Weekly check-ins &amp; supervisor visibility</p>
         </div>
 

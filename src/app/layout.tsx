@@ -21,7 +21,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Intern Dashboard",
+  title: "LeptonArgo",
   description: "Weekly intern check-ins with supervisor visibility.",
 };
 

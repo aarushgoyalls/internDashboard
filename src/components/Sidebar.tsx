@@ -59,7 +59,7 @@ export function Sidebar({
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
         <span className="flex items-center gap-2 font-display text-[15px] font-extrabold tracking-tight text-foreground">
           <span className="h-2 w-2 rounded-full bg-accent" aria-hidden />
-          Intern Dashboard
+          LeptonArgo
         </span>
         <NotificationBell initialUnread={unreadCount} />
       </div>

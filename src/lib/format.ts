@@ -34,3 +34,11 @@ export function formatDate(input: Date | string): string {
   const date = typeof input === "string" ? new Date(input) : input;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+
+// e.g. "Jul 14 – Aug 30, 2026". Falls back gracefully if either end is missing.
+export function formatDateRange(start: Date | string | null, end: Date | string | null): string {
+  if (!start && !end) return "No timeline set";
+  if (!start) return `Through ${formatDate(end!)}`;
+  if (!end) return `From ${formatDate(start)}`;
+  return `${formatDate(start)} – ${formatDate(end)}`;
+}

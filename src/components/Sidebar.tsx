@@ -43,6 +43,7 @@ export function Sidebar({
   if (me.role === "INTERN" || me.isAlsoIntern) nav.push({ href: "/form", label: "My daily update" });
   if (me.role === "SUPERVISOR" || me.role === "ADMIN") nav.push({ href: "/dashboard", label: "Dashboard" });
   if (me.role === "SUPERVISOR" || me.role === "ADMIN") nav.push({ href: "/projects", label: "Projects" });
+  nav.push({ href: "/available-projects", label: "Projects Available" });
   if (me.role === "SUPERVISOR") nav.push({ href: "/questions", label: "Form questions" });
   nav.push({ href: "/meetings", label: "Meetings" });
   if (me.role === "ADMIN") nav.push({ href: "/admin", label: "Admin" });

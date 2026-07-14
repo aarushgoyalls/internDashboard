@@ -22,6 +22,38 @@ export async function canAccessDmThread(userId: string, threadId: string): Promi
   return !!p;
 }
 
+// Keep a user's channel memberships in sync with their department: join the
+// global channels plus their department's channels, leave any other
+// department's channels. Call whenever admin sets or changes a user's
+// department (including on user creation).
+export async function syncUserDepartmentChannels(
+  userId: string,
+  departmentId: string | null
+): Promise<void> {
+  const [joinable, leave] = await Promise.all([
+    prisma.channel.findMany({
+      where: departmentId ? { OR: [{ isGeneral: true }, { departmentId }] } : { isGeneral: true },
+      select: { id: true },
+    }),
+    prisma.channel.findMany({
+      where: departmentId
+        ? { departmentId: { not: null }, NOT: { departmentId } }
+        : { departmentId: { not: null } },
+      select: { id: true },
+    }),
+  ]);
+
+  await prisma.$transaction([
+    prisma.channelMembership.deleteMany({
+      where: { userId, channelId: { in: leave.map((c) => c.id) } },
+    }),
+    prisma.channelMembership.createMany({
+      data: joinable.map((c) => ({ userId, channelId: c.id })),
+      skipDuplicates: true,
+    }),
+  ]);
+}
+
 // Can this viewer open an intern's detail/progress-report page, assign them a
 // project, add form questions for them, or invite them to a meeting? Admins
 // see everyone; supervisors only interns explicitly mapped to them via
@@ -38,6 +70,17 @@ export async function canViewIntern(
     return !!assignment;
   }
   return false;
+}
+
+// Hard cap on how many non-archived projects an intern can be assigned to at
+// once. Enforced wherever a ProjectAssignment is created — both the existing
+// bulk assignment on /projects and the one-off assign from Projects Available.
+export const MAX_ACTIVE_PROJECTS = 2;
+
+export async function activeProjectCount(internId: string): Promise<number> {
+  return prisma.projectAssignment.count({
+    where: { internId, project: { archived: false } },
+  });
 }
 
 export type ManagedIntern = {

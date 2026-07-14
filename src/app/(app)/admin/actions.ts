@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/rbac";
 import { setSetting } from "@/lib/settings";
 import { SETTING_KEYS } from "@/lib/constants";
 import { generateReminders } from "@/lib/reminders";
+import { syncUserDepartmentChannels } from "@/lib/access";
 
 const ROLES: Role[] = ["INTERN", "SUPERVISOR", "ADMIN"];
 
@@ -51,22 +52,37 @@ export async function createUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = (String(formData.get("role") ?? "INTERN") as Role);
   const departmentId = String(formData.get("departmentId") ?? "") || null;
+  const internshipEndDate = String(formData.get("internshipEndDate") ?? "") || null;
   if (!email || !ROLES.includes(role)) return;
   try {
-    await prisma.user.create({ data: { name: name || null, email, role, departmentId } });
+    const created = await prisma.user.create({
+      data: {
+        name: name || null,
+        email,
+        role,
+        departmentId,
+        internshipEndDate: internshipEndDate ? new Date(internshipEndDate) : null,
+      },
+    });
+    await syncUserDepartmentChannels(created.id, departmentId);
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e; // ignore dup email
   }
   revalidatePath("/admin");
 }
 
-// Change a user's role and/or department.
+// Change a user's role, department, and/or internship end date.
 export async function updateUser(userId: string, formData: FormData) {
   await requireRole("ADMIN");
   const role = String(formData.get("role") ?? "") as Role;
   const departmentId = String(formData.get("departmentId") ?? "") || null;
+  const internshipEndDate = String(formData.get("internshipEndDate") ?? "") || null;
   if (!ROLES.includes(role)) return;
-  await prisma.user.update({ where: { id: userId }, data: { role, departmentId } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role, departmentId, internshipEndDate: internshipEndDate ? new Date(internshipEndDate) : null },
+  });
+  await syncUserDepartmentChannels(userId, departmentId);
   revalidatePath("/admin");
 }
 

@@ -67,6 +67,7 @@ export type InternDetail = {
   departmentId: string | null;
   department: string | null;
   isSoftwareDept: boolean;
+  internshipEndDate: Date | null;
   status: StatusValue | null;
   notes: string | null;
   submissions: {
@@ -102,6 +103,7 @@ export async function getInternDetail(internId: string): Promise<InternDetail | 
     departmentId: intern.departmentId,
     department: intern.department?.name ?? null,
     isSoftwareDept: intern.department?.isSoftware ?? false,
+    internshipEndDate: intern.internshipEndDate,
     status: intern.status?.status ?? null,
     notes: intern.status?.notes ?? null,
     submissions: intern.submissions,

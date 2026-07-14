@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SDLC_STAGE_META, SDLC_STAGE_VALUES } from "@/lib/constants";
+import { formatDateRange } from "@/lib/format";
 
 type Dept = { id: string; name: string; isSoftware: boolean };
-type ProjectOption = { id: string; name: string };
+type ProjectOption = { id: string; name: string; startDate: Date | null; endDate: Date | null };
 type QuestionOption = { id: string; prompt: string };
 type ExistingAnswer = { questionId: string; answer: string };
 type Existing = {
@@ -106,12 +107,22 @@ export function ProgressForm({
       <div>
         <label className={label}>Project</label>
         {projects.length > 0 ? (
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} required className={field}>
-            <option value="" disabled>Select project…</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+          <>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} required className={field}>
+              <option value="" disabled>Select project…</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            {projectId && (
+              <p className="mt-1 text-xs text-subtle">
+                Timeline: {formatDateRange(
+                  projects.find((p) => p.id === projectId)?.startDate ?? null,
+                  projects.find((p) => p.id === projectId)?.endDate ?? null
+                )}
+              </p>
+            )}
+          </>
         ) : (
           <>
             <input value={project} onChange={(e) => setProject(e.target.value)} required placeholder="What are you working on?" className={field} />

@@ -166,6 +166,10 @@ export default async function AdminPage() {
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted">Internship end date</label>
+              <input type="date" name="internshipEndDate" className={`mt-1 ${input}`} />
+            </div>
             <button className="btn-primary px-3 py-1.5">Create</button>
           </form>
         </section>
@@ -178,7 +182,7 @@ export default async function AdminPage() {
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
                   <th className="px-4 py-2.5 font-semibold">User</th>
-                  <th className="px-4 py-2.5 font-semibold">Role &amp; department</th>
+                  <th className="px-4 py-2.5 font-semibold">Role, department &amp; end date</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -207,6 +211,13 @@ export default async function AdminPage() {
                             <option value="">None</option>
                             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           </select>
+                          <input
+                            type="date"
+                            name="internshipEndDate"
+                            defaultValue={u.internshipEndDate ? u.internshipEndDate.toISOString().slice(0, 10) : ""}
+                            title="Internship end date"
+                            className={input}
+                          />
                           <button className="btn-secondary px-3 py-1.5">Save</button>
                         </form>
                         <form action={setUserActive.bind(null, u.id)}>

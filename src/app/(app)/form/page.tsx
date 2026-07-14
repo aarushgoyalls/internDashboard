@@ -60,7 +60,12 @@ export default async function FormPage() {
             departments={departments.map((d) => ({ id: d.id, name: d.name, isSoftware: d.isSoftware }))}
             defaultDepartmentId={me.departmentId}
             existing={current}
-            projects={myProjectAssignments.map((a) => ({ id: a.project.id, name: a.project.name }))}
+            projects={myProjectAssignments.map((a) => ({
+              id: a.project.id,
+              name: a.project.name,
+              startDate: a.project.startDate,
+              endDate: a.project.endDate,
+            }))}
             questions={questions.map((q) => ({ id: q.id, prompt: q.prompt }))}
             existingAnswers={existingAnswers.map((a) => ({ questionId: a.questionId, answer: a.answer }))}
           />

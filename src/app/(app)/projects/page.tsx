@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { getManagedInterns } from "@/lib/access";
 import { Avatar } from "@/components/Avatar";
-import { createProject, archiveProject, updateProjectAssignments } from "./actions";
+import { formatDateRange } from "@/lib/format";
+import { createProject, archiveProject, updateProjectAssignments, updateProjectTimeline } from "./actions";
 
 // Supervisors create + assign projects to their own interns; admins can do
 // the same for anyone. Assigned projects populate the daily form's Project
@@ -11,13 +12,14 @@ export default async function ProjectsPage() {
   const me = await requireRole("SUPERVISOR", "ADMIN");
   const isAdmin = me.role === "ADMIN";
 
-  const [projects, managedInterns] = await Promise.all([
+  const [projects, managedInterns, departments] = await Promise.all([
     prisma.project.findMany({
       where: { archived: false, ...(isAdmin ? {} : { createdById: me.id }) },
-      include: { assignments: { include: { intern: true } }, createdBy: true },
+      include: { assignments: { include: { intern: true } }, createdBy: true, department: true },
       orderBy: { createdAt: "desc" },
     }),
     getManagedInterns(me),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   const input = "field";
@@ -39,6 +41,21 @@ export default async function ProjectsPage() {
               <label className="block text-xs font-semibold text-muted">Description (optional)</label>
               <input name="description" placeholder="What's this project about?" className={`mt-1 w-full ${input}`} />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted">Department</label>
+              <select name="departmentId" className={`mt-1 ${input}`}>
+                <option value="">None</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted">Start date</label>
+              <input type="date" name="startDate" required className={`mt-1 ${input}`} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted">End date</label>
+              <input type="date" name="endDate" required className={`mt-1 ${input}`} />
+            </div>
             <button className="btn-primary px-3 py-1.5">Add</button>
           </form>
         </section>
@@ -59,9 +76,17 @@ export default async function ProjectsPage() {
                 <div key={p.id} className="card p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-foreground">{p.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground">{p.name}</p>
+                        {p.department && (
+                          <span className="pill border border-border bg-surface-muted text-[10px] text-muted">{p.department.name}</span>
+                        )}
+                      </div>
                       {p.description && <p className="mt-0.5 text-sm text-muted">{p.description}</p>}
-                      {isAdmin && <p className="mt-1 text-xs text-subtle">Created by {p.createdBy.name ?? p.createdBy.email}</p>}
+                      <p className="mt-1 text-xs text-subtle">
+                        {formatDateRange(p.startDate, p.endDate)}
+                        {isAdmin && <span> · Created by {p.createdBy.name ?? p.createdBy.email}</span>}
+                      </p>
                     </div>
                     <form action={archiveProject.bind(null, p.id)}>
                       <button className="btn-secondary px-2.5 py-1 text-xs">
@@ -69,6 +94,30 @@ export default async function ProjectsPage() {
                       </button>
                     </form>
                   </div>
+
+                  <form action={updateProjectTimeline.bind(null, p.id)} className="mt-3 flex flex-wrap items-end gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted">Start date</label>
+                      <input
+                        type="date"
+                        name="startDate"
+                        required
+                        defaultValue={p.startDate ? p.startDate.toISOString().slice(0, 10) : ""}
+                        className={`mt-1 ${input}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted">End date</label>
+                      <input
+                        type="date"
+                        name="endDate"
+                        required
+                        defaultValue={p.endDate ? p.endDate.toISOString().slice(0, 10) : ""}
+                        className={`mt-1 ${input}`}
+                      />
+                    </div>
+                    <button className="btn-secondary px-3 py-1.5">Save timeline</button>
+                  </form>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {p.assignments.map((a) => (

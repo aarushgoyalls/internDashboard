@@ -7,8 +7,27 @@ import Google from "next-auth/providers/google";
 // AUTH_GOOGLE_SECRET from env automatically. If no Google creds are set
 // (local dev with only the impersonation switcher), we register no providers
 // here and rely on the dev Credentials provider added in auth.ts.
+//
+// The extra scope + access_type/prompt below are for Calendar sync
+// (src/lib/googleCalendar.ts): calendar.events lets the app create/cancel
+// events on a supervisor's calendar when they schedule a meeting.
+// access_type=offline + prompt=consent are required or Google only ever
+// hands back an access_token (no refresh_token), which expires in ~1hr and
+// then silently breaks Calendar sync for that user.
 export default {
-  providers: process.env.AUTH_GOOGLE_ID ? [Google] : [],
+  providers: process.env.AUTH_GOOGLE_ID
+    ? [
+        Google({
+          authorization: {
+            params: {
+              scope: "openid email profile https://www.googleapis.com/auth/calendar.events",
+              access_type: "offline",
+              prompt: "consent",
+            },
+          },
+        }),
+      ]
+    : [],
   pages: { signIn: "/login" },
   callbacks: {
     // Runs on every request. On sign-in `user` is present -> copy identity into

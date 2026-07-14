@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { StatusEditor } from "@/components/StatusEditor";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { SdlcChart } from "@/components/SdlcChart";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateRange } from "@/lib/format";
 import { SDLC_STAGE_META } from "@/lib/constants";
 
 // Per-intern progress report: header + activity/SDLC charts + full submission
@@ -43,6 +43,9 @@ export default async function InternDetailPage({ params }: { params: Promise<{ i
                 {intern.email}
                 {intern.department ? ` · ${intern.department}` : ""}
               </p>
+              <p className="mt-0.5 text-xs text-subtle">
+                Internship end date: {intern.internshipEndDate ? formatDate(intern.internshipEndDate) : "Not set"}
+              </p>
             </div>
           </div>
           <StatusEditor internId={intern.id} status={intern.status} notes={intern.notes} />
@@ -55,7 +58,10 @@ export default async function InternDetailPage({ params }: { params: Promise<{ i
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {projectAssignments.map((a) => (
-              <span key={a.id} className="pill border border-border bg-surface-muted text-muted">{a.project.name}</span>
+              <span key={a.id} className="pill border border-border bg-surface-muted text-muted">
+                {a.project.name}
+                <span className="text-subtle"> · {formatDateRange(a.project.startDate, a.project.endDate)}</span>
+              </span>
             ))}
             {projectAssignments.length === 0 && <span className="text-xs text-subtle">No project assigned yet</span>}
           </div>

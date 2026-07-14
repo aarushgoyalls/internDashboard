@@ -19,6 +19,15 @@ export default async function ChannelsIndex() {
     me.role === "ADMIN" ? prisma.department.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
 
+  // Non-admins only browse channels they can actually reach: global ones,
+  // their own department's, or ones they already belong to (see canAccessChannel).
+  const visibleChannels =
+    me.role === "ADMIN"
+      ? channels
+      : channels.filter(
+          (c) => c.isGeneral || c.departmentId === null || c.departmentId === me.departmentId || c.memberships.length > 0
+        );
+
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
       <div className="mx-auto max-w-2xl px-6 py-8">
@@ -46,8 +55,10 @@ export default async function ChannelsIndex() {
         )}
 
         <ul className="card mt-6 divide-y divide-border">
-          {channels.map((c) => {
-            const joined = c.memberships.length > 0;
+          {visibleChannels.map((c) => {
+            // Admins can already read/post in any channel (see canAccessChannel),
+            // so let them open every channel here without an artificial "join".
+            const canOpen = me.role === "ADMIN" || c.memberships.length > 0;
             return (
               <li key={c.id} className="flex items-center justify-between px-4 py-3">
                 <div className="min-w-0">
@@ -58,7 +69,7 @@ export default async function ChannelsIndex() {
                     {c.isGeneral ? "Everyone" : c.department?.name ?? "Global"} · {c._count.memberships} members
                   </p>
                 </div>
-                {joined ? (
+                {canOpen ? (
                   <Link href={`/channels/${c.id}`} className="btn-secondary px-3 py-1.5">
                     Open
                   </Link>

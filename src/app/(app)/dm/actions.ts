@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/rbac";
 
@@ -19,6 +20,7 @@ export async function openDm(otherUserId: string) {
         participants: { create: [{ userId: me.id }, { userId: otherUserId }] },
       },
     });
+    revalidatePath("/", "layout");
   }
   redirect(`/dm/${thread.id}`);
 }

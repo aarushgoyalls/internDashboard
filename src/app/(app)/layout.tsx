@@ -11,7 +11,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [dbUser, channels, dmThreads, unread] = await Promise.all([
     prisma.user.findUnique({ where: { id: me.id }, include: { department: true } }),
     prisma.channel.findMany({
-      where: { memberships: { some: { userId: me.id } } },
+      // Admins see every channel in the sidebar, not just ones they've joined
+      // (they already have read/post access to all — see canAccessChannel).
+      where: me.role === "ADMIN" ? {} : { memberships: { some: { userId: me.id } } },
       orderBy: [{ isGeneral: "desc" }, { name: "asc" }],
     }),
     prisma.dMThread.findMany({

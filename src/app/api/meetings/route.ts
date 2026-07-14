@@ -4,6 +4,7 @@ import { requireApiRole } from "@/lib/rbac";
 import { getManagedInterns } from "@/lib/access";
 import { meetingSchema } from "@/lib/validation";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
+import { createCalendarEvent, cancelCalendarEvent } from "@/lib/googleCalendar";
 
 // POST /api/meetings -> supervisor/admin schedules a meeting with one or more
 // of their interns. `startAt`/`recurrenceEndDate` are ISO instants (the
@@ -53,6 +54,23 @@ export async function POST(req: Request) {
     })),
   });
 
+  // Best-effort Google Calendar sync — never blocks the in-app meeting on
+  // failure (most organizers won't have Calendar access granted at all).
+  const managedById = new Map(managed.map((i) => [i.id, i.email]));
+  const attendeeEmails = attendeeIds.map((id) => managedById.get(id)).filter((e): e is string => !!e);
+  const googleEventId = await createCalendarEvent(guard.id, {
+    title: meeting.title,
+    description: meeting.description,
+    startAt: meeting.startAt,
+    durationMins: meeting.durationMins,
+    attendeeEmails,
+    recurrence: meeting.recurrence,
+    recurrenceEndDate: meeting.recurrenceEndDate,
+  });
+  if (googleEventId) {
+    await prisma.meeting.update({ where: { id: meeting.id }, data: { googleEventId } });
+  }
+
   return NextResponse.json({ meeting }, { status: 201 });
 }
 
@@ -65,11 +83,17 @@ export async function PATCH(req: Request) {
   const meetingId = typeof body?.meetingId === "string" ? body.meetingId : null;
   if (!meetingId) return NextResponse.json({ error: "meetingId is required" }, { status: 400 });
 
-  const meeting = await prisma.meeting.findUnique({ where: { id: meetingId }, select: { organizerId: true } });
+  const meeting = await prisma.meeting.findUnique({
+    where: { id: meetingId },
+    select: { organizerId: true, googleEventId: true },
+  });
   if (!meeting) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (guard.role !== "ADMIN" && meeting.organizerId !== guard.id)
     return NextResponse.json({ error: "Only the organizer can cancel this meeting" }, { status: 403 });
 
   await prisma.meeting.update({ where: { id: meetingId }, data: { cancelledAt: new Date() } });
+  if (meeting.googleEventId) {
+    await cancelCalendarEvent(meeting.organizerId, meeting.googleEventId);
+  }
   return NextResponse.json({ ok: true });
 }

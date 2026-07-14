@@ -54,6 +54,7 @@ model Department {
   isSoftware Boolean @default(false)
   users      User[]
   channels   Channel[]
+  projects   Project[]
 }
 
 model User {
@@ -69,6 +70,9 @@ model User {
   // Deactivated users are blocked from signing in and hidden from pickers,
   // but their historical data (submissions, messages) is preserved.
   active       Boolean   @default(true)
+  // Last working day of the internship, set by an admin. Purely informational
+  // (doesn't auto-deactivate the account) — shown on the intern's profile page.
+  internshipEndDate DateTime?
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
   createdAt    DateTime  @default(now())
@@ -93,6 +97,10 @@ model User {
   // Projects
   projectsCreated   Project[]           @relation("ProjectsCreated")
   projectAssignments ProjectAssignment[] @relation("ProjectAssignments")
+
+  // Projects Available marketplace
+  projectWishlist  ProjectWishlist[] @relation("ProjectWishlist")
+  projectInterests ProjectInterest[] @relation("ProjectInterest")
 
   // Custom daily-form questions
   formQuestionsAuthored FormQuestion[]
@@ -227,16 +235,65 @@ model SupervisorAssignment {
 // A project a supervisor (or admin) creates and assigns to one or more
 // interns. Powers the daily form's Project dropdown.
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  createdById String
-  createdBy   User     @relation("ProjectsCreated", fields: [createdById], references: [id])
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  createdById  String
+  createdBy    User     @relation("ProjectsCreated", fields: [createdById], references: [id])
+  // Descriptive/reporting field — not an access-control boundary. Project
+  // assignment is still governed by the creator's SupervisorAssignment
+  // interns, independent of this.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  // Project timeline. Required going forward on every new project (enforced in
+  // the create form/action); nullable in the DB so pre-existing projects don't
+  // need a backfill — they just show "No timeline set" until edited.
+  startDate    DateTime?
+  endDate      DateTime?
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
-  assignments ProjectAssignment[]
-  submissions FormSubmission[]
+  // Marketplace: shown on the "Projects Available" tab for interns to browse,
+  // wishlist, and express interest in. Independent of `archived` (archiving
+  // elsewhere hides it from Available too, since that view always filters on
+  // both).
+  skillsRequired String?
+  listed         Boolean  @default(false)
+
+  assignments  ProjectAssignment[]
+  submissions  FormSubmission[]
+  wishlistedBy ProjectWishlist[]
+  interests    ProjectInterest[]
+}
+
+// Intern's private saved list of listed projects. Purely a bookmark — does
+// NOT imply interest and never triggers a notification (see ProjectInterest,
+// a deliberately separate action).
+model ProjectWishlist {
+  id        String   @id @default(cuid())
+  projectId String
+  internId  String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  intern    User     @relation("ProjectWishlist", fields: [internId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, internId])
+  @@index([internId])
+}
+
+// An intern's explicit "I'm interested" signal on a listed project, separate
+// from wishlisting. Notifies the project's creator; doesn't create a
+// ProjectAssignment by itself — the supervisor assigns manually from here.
+model ProjectInterest {
+  id        String   @id @default(cuid())
+  projectId String
+  internId  String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  intern    User     @relation("ProjectInterest", fields: [internId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, internId])
+  @@index([projectId])
 }
 
 model ProjectAssignment {
@@ -296,6 +353,9 @@ model Meeting {
   recurrenceEndDate DateTime?
   cancelledAt       DateTime?
   createdAt         DateTime @default(now())
+  // Set only if the organizer has granted Calendar access and the sync
+  // call succeeded — best-effort, never blocks meeting creation.
+  googleEventId     String?
 
   attendees MeetingAttendee[]
 

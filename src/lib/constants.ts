@@ -62,6 +62,8 @@ export const DEFAULT_SETTINGS = {
 export const NOTIFICATION_TYPES = {
   FORM_REMINDER: "FORM_REMINDER",
   MEETING_INVITE: "MEETING_INVITE",
+  PROJECT_INTEREST: "PROJECT_INTEREST",
+  PROJECT_ASSIGNED: "PROJECT_ASSIGNED",
 } as const;
 
 export const RECURRENCE_META: Record<RecurrenceFrequency, { label: string }> = {

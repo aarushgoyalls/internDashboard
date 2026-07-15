@@ -129,20 +129,20 @@ export default async function ProjectsPage() {
                     {p.assignments.length === 0 && <span className="text-xs text-subtle">Not assigned to anyone yet</span>}
                   </div>
 
-                  <form action={updateProjectAssignments.bind(null, p.id)} className="mt-3 flex flex-wrap items-end gap-2">
-                    <select
-                      name="internIds"
-                      multiple
-                      size={Math.min(6, Math.max(3, managedInterns.length))}
-                      defaultValue={[...assignedIds]}
-                      className={`${input} min-w-56`}
-                    >
+                  <form action={updateProjectAssignments.bind(null, p.id)} className="mt-3 flex flex-wrap items-start gap-2">
+                    <div className="min-w-56 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
                       {managedInterns.map((i) => (
-                        <option key={i.id} value={i.id}>
+                        <label key={i.id} className="flex items-center gap-2 text-sm text-foreground">
+                          <input
+                            type="checkbox"
+                            name="internIds"
+                            value={i.id}
+                            defaultChecked={assignedIds.has(i.id)}
+                          />
                           {i.name ?? i.email}
-                        </option>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     <button className="btn-secondary px-3 py-1.5">
                       Save assignment
                     </button>

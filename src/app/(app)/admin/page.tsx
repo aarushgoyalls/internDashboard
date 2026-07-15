@@ -2,12 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { getReminderSettings } from "@/lib/settings";
 import { Avatar } from "@/components/Avatar";
+import { SupervisorInternPicker } from "@/components/SupervisorInternPicker";
 import {
   createDepartment,
   createUser,
   updateUser,
   updateSettings,
   runRemindersNow,
+  runSupervisorDigestNow,
   toggleDepartmentSoftware,
   setUserActive,
   updateSupervisorAssignments,
@@ -58,7 +60,17 @@ export default async function AdminPage() {
                 Run reminders now
               </button>
             </form>
+            <form action={runSupervisorDigestNow}>
+              <button className="btn-secondary px-3 py-1.5">
+                Email supervisor digest now
+              </button>
+            </form>
           </div>
+          <p className="mt-2 text-xs text-subtle">
+            Supervisors also get a daily email at 8:00 PM IST with how many of
+            their interns submitted today and who&apos;s missing (requires
+            GMAIL_USER / GMAIL_APP_PASSWORD to be set).
+          </p>
         </section>
 
         {/* Departments */}
@@ -118,20 +130,8 @@ export default async function AdminPage() {
                       <p className="text-xs text-subtle">{assignedIds.size} intern{assignedIds.size === 1 ? "" : "s"}</p>
                     </div>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <select
-                      name="internIds"
-                      multiple
-                      size={Math.min(6, Math.max(3, interns.length))}
-                      defaultValue={[...assignedIds]}
-                      className={`${input} min-w-56`}
-                    >
-                      {interns.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name ?? i.email}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex items-start gap-2">
+                    <SupervisorInternPicker interns={interns} initialAssignedIds={[...assignedIds]} />
                     <button className="btn-secondary px-3 py-1.5">Save</button>
                   </div>
                 </form>

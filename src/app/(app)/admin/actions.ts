@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/rbac";
 import { setSetting } from "@/lib/settings";
 import { SETTING_KEYS } from "@/lib/constants";
 import { generateReminders } from "@/lib/reminders";
+import { generateSupervisorDigest } from "@/lib/supervisorDigest";
 import { syncUserDepartmentChannels } from "@/lib/access";
 
 const ROLES: Role[] = ["INTERN", "SUPERVISOR", "ADMIN"];
@@ -22,6 +23,12 @@ export async function updateSettings(formData: FormData) {
 export async function runRemindersNow() {
   await requireRole("ADMIN");
   await generateReminders();
+  revalidatePath("/admin");
+}
+
+export async function runSupervisorDigestNow() {
+  await requireRole("ADMIN");
+  await generateSupervisorDigest();
   revalidatePath("/admin");
 }
 

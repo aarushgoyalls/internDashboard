@@ -69,7 +69,15 @@ Because login is **Google OAuth**, the 15 seeded interns (fake emails) can't log
 
 - **Scheduled:** `vercel.json` runs `GET /api/cron/reminders` daily at 09:00 UTC.
 - **Manual:** admins can hit **Run reminders now** in `/admin`.
-- **Email (later):** delivery is in-app for now. The drop-in point is marked in `src/lib/reminders.ts` — add e.g. `nodemailer` there and send to each `toRemind` user.
+- **Email:** this intern-facing nudge is still in-app only. The drop-in point is marked in `src/lib/reminders.ts` — the supervisor digest below shows the pattern (`src/lib/email.ts`).
+
+## Supervisor digest
+
+`src/lib/supervisorDigest.ts` emails every active supervisor a daily summary — how many of their interns submitted today's form, and the names of who hasn't — via `src/lib/email.ts` (Gmail/Workspace SMTP, using an App Password, not real email delivery for anything else in the app).
+
+- **Scheduled:** `vercel.json` runs `GET /api/cron/supervisor-digest` daily at 14:30 UTC (8:00 PM IST).
+- **Manual:** admins can hit **Email supervisor digest now** in `/admin`.
+- **Requires:** `GMAIL_USER` / `GMAIL_APP_PASSWORD` env vars (see `.env.example` — generate the App Password at https://myaccount.google.com/apppasswords, requires 2-Step Verification on that Google account). Without them set, both the scheduled and manual triggers will error.
 
 ## Deploying to Vercel
 
@@ -81,6 +89,7 @@ Because login is **Google OAuth**, the 15 seeded interns (fake emails) can't log
    - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — from Google Cloud Console (see below).
    - `ALLOWED_EMAIL_DOMAINS` — e.g. `leptonmaps.com` (who may sign in with Google).
    - `CRON_SECRET` — any random string; Vercel sends it as a bearer token to the cron route.
+   - `GMAIL_USER` / `GMAIL_APP_PASSWORD` — mailbox that sends the supervisor digest (see [Supervisor digest](#supervisor-digest)).
 3. **Google OAuth** (https://console.cloud.google.com/apis/credentials → Create OAuth client → Web application):
    - Authorized redirect URI: `https://YOUR-DOMAIN.vercel.app/api/auth/callback/google`
    - (For local dev: `http://localhost:3000/api/auth/callback/google`)

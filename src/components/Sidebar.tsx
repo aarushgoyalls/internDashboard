@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import type { Role } from "@prisma/client";
 import { Avatar } from "@/components/Avatar";
 import { NotificationBell } from "@/components/NotificationBell";
+import { FeedbackForm } from "@/components/FeedbackForm";
 
 type Me = {
   id: string;
@@ -125,6 +126,7 @@ export function Sidebar({
             </p>
           </div>
         </div>
+        <FeedbackForm />
         <button onClick={() => signOut({ callbackUrl: "/login" })} className="btn-ghost mt-2 w-full border border-border">
           Sign out
         </button>

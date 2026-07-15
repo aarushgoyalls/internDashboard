@@ -66,6 +66,11 @@ export const NOTIFICATION_TYPES = {
   PROJECT_ASSIGNED: "PROJECT_ASSIGNED",
 } as const;
 
+// Where the "Feedback" sidebar button's submissions get emailed. Separate
+// from ROLE_PREVIEW_EMAIL in rolePreview.ts (same person today, different
+// purpose) so the two don't accidentally couple.
+export const FEEDBACK_RECIPIENT_EMAIL = "aarush.goyal@leptonsoftware.com";
+
 export const RECURRENCE_META: Record<RecurrenceFrequency, { label: string }> = {
   NONE: { label: "Does not repeat" },
   DAILY: { label: "Daily" },

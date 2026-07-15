@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { getReminderSettings } from "@/lib/settings";
+import { formatDateTime } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { SupervisorInternPicker } from "@/components/SupervisorInternPicker";
 import {
@@ -20,7 +21,7 @@ const ROLES = ["INTERN", "SUPERVISOR", "ADMIN"] as const;
 export default async function AdminPage() {
   await requireRole("ADMIN");
 
-  const [settings, departments, users, supervisors, interns] = await Promise.all([
+  const [settings, departments, users, supervisors, interns, feedbackItems] = await Promise.all([
     getReminderSettings(),
     prisma.department.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { users: true } } } }),
     prisma.user.findMany({ include: { department: true }, orderBy: [{ role: "asc" }, { name: "asc" }] }),
@@ -33,6 +34,7 @@ export default async function AdminPage() {
       where: { OR: [{ role: "INTERN" }, { isAlsoIntern: true }], active: true },
       orderBy: { name: "asc" },
     }),
+    prisma.feedback.findMany({ include: { author: true }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const input = "field";
@@ -42,6 +44,26 @@ export default async function AdminPage() {
     <div className="h-full overflow-y-auto scrollbar-thin">
       <div className="mx-auto max-w-4xl px-6 py-8 space-y-10">
         <h1 className="page-title">Admin</h1>
+
+        {/* Feedback */}
+        <section>
+          <h2 className={sectionTitle}>Feedback ({feedbackItems.length})</h2>
+          <p className="mt-1 text-xs text-subtle">Feature requests and suggestions, sent from the sidebar by any signed-in user.</p>
+          <div className="card mt-3 divide-y divide-border">
+            {feedbackItems.map((f) => (
+              <div key={f.id} className="flex items-start gap-2.5 p-4">
+                <Avatar name={f.author.name} email={f.author.email} image={f.author.image} size={28} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground">{f.message}</p>
+                  <p className="mt-1 text-xs text-subtle">
+                    {f.author.name ?? f.author.email} · {formatDateTime(f.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {feedbackItems.length === 0 && <p className="p-4 text-sm text-subtle">No feedback yet.</p>}
+          </div>
+        </section>
 
         {/* Reminder settings */}
         <section>

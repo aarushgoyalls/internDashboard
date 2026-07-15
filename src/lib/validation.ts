@@ -37,6 +37,10 @@ export const statusSchema = z.object({
   notes: z.string().trim().max(2000).optional().nullable(),
 });
 
+export const feedbackSchema = z.object({
+  message: z.string().trim().min(1, "Message cannot be empty").max(2000),
+});
+
 export const meetingSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
   description: z.string().trim().max(4000).optional().nullable(),

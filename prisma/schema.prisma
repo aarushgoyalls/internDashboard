@@ -89,6 +89,7 @@ model User {
   status          InternStatus?       @relation("InternStatusOwner")
   statusUpdates   InternStatus[]      @relation("StatusUpdatedBy")
   notifications   Notification[]
+  feedback        Feedback[]
 
   // Supervisor <-> intern explicit mapping (independent of department).
   supervisorOf        SupervisorAssignment[] @relation("SupervisorOf")
@@ -386,6 +387,18 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+// A feature request / suggestion from any signed-in user (any role), shown to
+// admins on /admin and delivered via notification + email.
+model Feedback {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // Simple key/value config store (e.g. reminderIntervalDays).

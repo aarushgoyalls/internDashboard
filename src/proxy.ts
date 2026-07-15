@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import authConfig from "@/auth.config";
+import { ROLE_PREVIEW_EMAIL } from "@/lib/rolePreview";
 
 // Coarse doorman (runs on the edge): is there a valid session at all? If not,
 // bounce to /login. Fine-grained role checks happen per-page/route via rbac.ts
@@ -24,6 +25,19 @@ export default auth((req) => {
     const url = new URL("/login", req.nextUrl.origin);
     url.searchParams.set("callbackUrl", pathname);
     return Response.redirect(url);
+  }
+
+  // One hardcoded account picks which role to preview right after signing
+  // in (see src/lib/rolePreview.ts). Send it to the picker before anything
+  // else, until it's made a choice for this session.
+  if (
+    isLoggedIn &&
+    req.auth?.user?.email?.toLowerCase() === ROLE_PREVIEW_EMAIL &&
+    !req.auth.user.rolePreviewChosen &&
+    pathname !== "/choose-role" &&
+    !pathname.startsWith("/api/")
+  ) {
+    return Response.redirect(new URL("/choose-role", req.nextUrl.origin));
   }
 
   // Route the home path to each role's landing page here (the token carries the

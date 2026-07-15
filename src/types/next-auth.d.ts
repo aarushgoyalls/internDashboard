@@ -10,6 +10,10 @@ declare module "next-auth" {
       role: Role;
       departmentId: string | null;
       isAlsoIntern: boolean;
+      // True once the one-time post-sign-in role picker (see
+      // src/lib/rolePreview.ts) has been resolved for this session. Only
+      // ever meaningful for the single hardcoded preview account.
+      rolePreviewChosen?: boolean;
     } & DefaultSession["user"];
   }
   interface User {
@@ -25,5 +29,6 @@ declare module "next-auth/jwt" {
     role: Role;
     departmentId: string | null;
     isAlsoIntern: boolean;
+    rolePreviewChosen?: boolean;
   }
 }

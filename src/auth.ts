@@ -1,8 +1,12 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import authConfig from "@/auth.config";
+import { ROLE_PREVIEW_EMAIL } from "@/lib/rolePreview";
+
+const PREVIEWABLE_ROLES: Role[] = ["INTERN", "SUPERVISOR", "ADMIN"];
 
 // NODE-only config: adapter (Prisma), sign-in gating, and the dev-only
 // impersonation provider. This module must never be imported by middleware.
@@ -84,7 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     // Same as the edge jwt callback, but with a Prisma fallback in case the
     // adapter user didn't carry role/department (safe: only runs on sign-in).
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string;
         token.role = (user as { role?: typeof token.role }).role;
@@ -100,6 +104,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = dbu?.role;
           token.departmentId = dbu?.departmentId ?? null;
           token.isAlsoIntern = dbu?.isAlsoIntern ?? false;
+        }
+        // Fresh sign-in: the post-login role picker (if it applies to this
+        // account) hasn't been shown yet this session.
+        token.rolePreviewChosen = false;
+      }
+      // One hardcoded account can preview any role after signing in (see
+      // src/lib/rolePreview.ts and src/app/choose-role). This only ever
+      // overwrites the JWT's role claim for the current session — it never
+      // touches the User row in Postgres, so the account's real stored role
+      // is untouched and everyone else's session update calls are ignored.
+      if (
+        trigger === "update" &&
+        typeof token.email === "string" &&
+        token.email.toLowerCase() === ROLE_PREVIEW_EMAIL
+      ) {
+        const requestedRole = (session as { role?: Role } | undefined)?.role;
+        if (requestedRole && PREVIEWABLE_ROLES.includes(requestedRole)) {
+          token.role = requestedRole;
+          token.rolePreviewChosen = true;
         }
       }
       return token;

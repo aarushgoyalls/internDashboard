@@ -52,6 +52,7 @@ export default {
         session.user.role = token.role as Role;
         session.user.departmentId = (token.departmentId as string | null) ?? null;
         session.user.isAlsoIntern = (token.isAlsoIntern as boolean) ?? false;
+        session.user.rolePreviewChosen = (token.rolePreviewChosen as boolean) ?? false;
       }
       return session;
     },

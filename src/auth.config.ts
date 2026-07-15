@@ -25,6 +25,18 @@ export default {
               prompt: "consent",
             },
           },
+          // Every supervisor/intern is pre-provisioned by email (seeded or
+          // added via the Admin panel) before they ever sign in, so their
+          // very first Google sign-in always finds a User row with no
+          // linked Account yet. Without this, Auth.js's default
+          // anti-hijack check refuses to link them and bounces back to
+          // /login (OAuthAccountNotLinked) — blocking every account except
+          // the rare one created fresh by a real first sign-in. Safe to
+          // trust here because our own signIn callback (auth.ts) already
+          // gates who reaches this point to the two company email domains
+          // (or a pre-existing row), so this only ever links a Google
+          // account to a same-email row we already provisioned ourselves.
+          allowDangerousEmailAccountLinking: true,
         }),
       ]
     : [],

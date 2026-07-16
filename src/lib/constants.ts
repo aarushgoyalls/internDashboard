@@ -64,6 +64,8 @@ export const NOTIFICATION_TYPES = {
   MEETING_INVITE: "MEETING_INVITE",
   PROJECT_INTEREST: "PROJECT_INTEREST",
   PROJECT_ASSIGNED: "PROJECT_ASSIGNED",
+  NEW_DM_MESSAGE: "NEW_DM_MESSAGE",
+  NEW_CHANNEL_MESSAGE: "NEW_CHANNEL_MESSAGE",
 } as const;
 
 // Where the "Feedback" sidebar button's submissions get emailed. Separate

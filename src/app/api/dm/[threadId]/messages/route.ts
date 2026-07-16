@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiUser } from "@/lib/rbac";
 import { canAccessDmThread } from "@/lib/access";
 import { messageSchema } from "@/lib/validation";
+import { notifyDmMessage } from "@/lib/messageNotify";
 
 // GET /api/dm/:threadId/messages -> messages in a DM thread (participants only).
 export async function GET(_req: Request, { params }: { params: Promise<{ threadId: string }> }) {
@@ -39,5 +40,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ threadI
     data: { dmThreadId: threadId, senderId: guard.id, body: parsed.data.body },
     include: { sender: { select: { id: true, name: true, email: true, image: true } } },
   });
+
+  // Notify the other participant (bell + best-effort email) after the
+  // response is sent, so the sender's own send isn't slowed down by it.
+  after(() =>
+    notifyDmMessage({
+      threadId,
+      senderId: guard.id,
+      senderLabel: message.sender.name ?? message.sender.email ?? "Someone",
+      body: parsed.data.body,
+    }).catch(() => {})
+  );
+
   return NextResponse.json({ message }, { status: 201 });
 }

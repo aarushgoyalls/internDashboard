@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiUser } from "@/lib/rbac";
 import { canAccessChannel } from "@/lib/access";
 import { messageSchema } from "@/lib/validation";
+import { notifyChannelMessage } from "@/lib/messageNotify";
 
 // GET /api/channels/:id/messages -> latest messages (polled by MessagePanel).
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,5 +40,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     data: { channelId: id, senderId: guard.id, body: parsed.data.body },
     include: { sender: { select: { id: true, name: true, email: true, image: true } } },
   });
+
+  // Notify the department (bell + best-effort email) after the response is
+  // sent, so the sender's own send isn't slowed down by it. No-op for
+  // channels not tied to a department (e.g. #general).
+  after(() =>
+    notifyChannelMessage({
+      channelId: id,
+      senderId: guard.id,
+      senderLabel: message.sender.name ?? message.sender.email ?? "Someone",
+      body: parsed.data.body,
+    }).catch(() => {})
+  );
+
   return NextResponse.json({ message }, { status: 201 });
 }
